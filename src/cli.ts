@@ -5,7 +5,7 @@ import { Command } from 'commander';
 process.stdout.on('error', (err: NodeJS.ErrnoException) => {
   if (err.code === 'EPIPE') process.exit(0);
 });
-import { scanAll, scanCodex, scanCowork, shortProject } from './scan.js';
+import { scanAll, scanClaudeCode, scanCodex, scanCowork, shortProject } from './scan.js';
 import { groupByProject, loadIndex, loadSession } from './store.js';
 import { sbusHome } from './paths.js';
 
@@ -25,7 +25,9 @@ program
     const rc = await scanCodex({ home: opts.codexHome });
     console.log('scanning cowork…');
     const rw = await scanCowork();
-    for (const [name, r] of [['codex', rc], ['cowork', rw]] as const) {
+    console.log('scanning claude-code…');
+    const rcc = await scanClaudeCode();
+    for (const [name, r] of [['codex', rc], ['cowork', rw], ['claude-code', rcc]] as const) {
       console.log(
         `${name}: ${r.scanned} sessions — ${r.added} added, ${r.updated} updated, ${r.skipped} unchanged` +
         (r.zstSkipped ? `, ${r.zstSkipped} .zst skipped (v0.2)` : ''),
@@ -160,6 +162,21 @@ program
   .action(async () => {
     const { runMcpServer } = await import('./mcp.js');
     await runMcpServer();
+  });
+
+program
+  .command('init')
+  .description('make session-bus auto-trigger in a project: write an ambient instruction block into AGENTS.md + CLAUDE.md (idempotent)')
+  .argument('[dir]', 'project directory', '.')
+  .action(async (dir: string) => {
+    const { initProject } = await import('./init.js');
+    try {
+      for (const r of initProject(dir)) console.log(`  ${r.action}: ${r.file}`);
+      console.log('→ agents in this project will now consult session-bus without being told by name.');
+    } catch (err) {
+      console.error(String(err));
+      process.exitCode = 1;
+    }
   });
 
 program

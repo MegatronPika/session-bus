@@ -94,6 +94,30 @@ describe('claude-jsonl shared parser (cowork / claude code)', () => {
   });
 });
 
+describe('claude-code adapter', () => {
+  it('discovers ~/.claude/projects layout and attributes project from line cwd', async () => {
+    const { discoverClaudeCodeSessions, parseClaudeCodeSession, decodeProjectDir } = await import('../src/adapters/claude-code.js');
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sbus-cc-'));
+    const projDir = path.join(root, '-Users-tester-dev-myapp');
+    fs.mkdirSync(projDir, { recursive: true });
+    const lines = [
+      { type: 'user', timestamp: '2026-06-11T01:00:00Z', sessionId: 'aaaa-bbbb-cccc-1234abcd5678', cwd: '/Users/tester/dev/myapp', gitBranch: 'main', version: '2.1.0', message: { role: 'user', content: '加一个深色模式' } },
+      { type: 'assistant', timestamp: '2026-06-11T01:00:05Z', cwd: '/Users/tester/dev/myapp', gitBranch: 'main', message: { model: 'claude-fable-5', content: [{ type: 'text', text: '好的,开始改' }] } },
+    ];
+    fs.writeFileSync(path.join(projDir, 'aaaa-bbbb-cccc-1234abcd5678.jsonl'), lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
+
+    const found = discoverClaudeCodeSessions(root);
+    expect(found).toHaveLength(1);
+    const s = await parseClaudeCodeSession(found[0]);
+    expect(s.meta.source).toBe('claude-code');
+    expect(s.meta.project).toBe(path.resolve('/Users/tester/dev/myapp'));
+    expect(s.meta.title).toContain('深色模式');
+    expect(s.meta.agentVersion).toBe('2.1.0');
+    expect(s.meta.id.startsWith('cc-')).toBe(true);
+    expect(decodeProjectDir('-a-b-c')).toBe('/a/b/c');
+  });
+});
+
 describe('redaction', () => {
   it('masks common secret shapes on egress', () => {
     const dirty = 'key=sk-abcdefghijklmnopqrstuvwxyz123456 and ghp_ABCDEFGHIJKLMNOPQRSTuvwxyz123456 ok';

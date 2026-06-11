@@ -23,6 +23,14 @@ export interface ClaudeJsonlResult {
   lastTs: string | null;
   firstUserText: string;
   usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+  /** first non-empty cwd seen on any record (standalone Claude Code sets this per line) */
+  cwd: string | null;
+  /** first sessionId seen on any record */
+  sessionId: string | null;
+  /** git branches seen during the session (Claude Code records gitBranch per line) */
+  gitBranches: string[];
+  /** agent version if recorded */
+  version: string | null;
 }
 
 const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
@@ -36,6 +44,10 @@ export async function parseClaudeJsonl(filePath: string): Promise<ClaudeJsonlRes
   let lastTs: string | null = null;
   let firstUserText = '';
   let usage: ClaudeJsonlResult['usage'];
+  let cwd: string | null = null;
+  let sessionId: string | null = null;
+  let version: string | null = null;
+  const gitBranches = new Set<string>();
   let seq = 0;
   let lineNo = 0;
 
@@ -63,6 +75,10 @@ export async function parseClaudeJsonl(filePath: string): Promise<ClaudeJsonlRes
       if (!firstTs) firstTs = ts;
       lastTs = ts;
     }
+    if (!cwd && typeof d.cwd === 'string' && d.cwd) cwd = d.cwd;
+    if (!sessionId && typeof d.sessionId === 'string' && d.sessionId) sessionId = d.sessionId;
+    if (!version && typeof d.version === 'string' && d.version) version = d.version;
+    if (typeof d.gitBranch === 'string' && d.gitBranch) gitBranches.add(d.gitBranch);
     // subagent (sidechain) traffic: not part of the main timeline in v0.1
     if (d.isSidechain === true) {
       counts.sidechainLines++;
@@ -153,6 +169,10 @@ export async function parseClaudeJsonl(filePath: string): Promise<ClaudeJsonlRes
     lastTs,
     firstUserText,
     usage,
+    cwd,
+    sessionId,
+    gitBranches: [...gitBranches],
+    version,
   };
 }
 

@@ -34,10 +34,16 @@ export function generateHandoff(projectQuery: string, level: HandoffLevel = 'sta
   out.push(`> project dir: ${project}`);
   out.push('');
 
+  // Advisory sessions (pure Q&A about the project, no file changes) stay on
+  // the timeline but must not pose as "the latest work" — a fresh agent would
+  // otherwise mistake an answered question for the project's current state.
+  const working = sessions.filter((s) => !isAdvisory(s));
+  const lastWorking = working[working.length - 1] ?? sessions[sessions.length - 1];
+
   // 1. Goal & current state
   out.push(`## 1. 目标与现状`);
   const firstAsk = firstUserMessage(sessions[0]);
-  const lastOutcome = lastAssistantMessage(sessions[sessions.length - 1]);
+  const lastOutcome = lastAssistantMessage(lastWorking);
   out.push(`**项目起点(用户原话):**`);
   out.push(quote(firstAsk, level === 'brief' ? 400 : 1200));
   if (lastOutcome) {
@@ -52,7 +58,7 @@ export function generateHandoff(projectQuery: string, level: HandoffLevel = 'sta
     const m = s.meta;
     const sameDay = (m.startedAt ?? '').slice(0, 10) === (m.endedAt ?? '').slice(0, 10);
     const span = `${(m.startedAt ?? '?').slice(0, 16).replace('T', ' ')} → ${sameDay ? (m.endedAt ?? '?').slice(11, 16) : (m.endedAt ?? '?').slice(0, 16).replace('T', ' ')}`;
-    out.push(`### ${m.id} · ${span} · ${m.source}`);
+    out.push(`### ${m.id} · ${span} · ${m.source}${isAdvisory(s) ? ' · (咨询/查询会话,未改动文件)' : ''}`);
     out.push(`**任务:** ${m.title}`);
     if (level !== 'brief') {
       const ask = firstUserMessage(s);
@@ -85,10 +91,9 @@ export function generateHandoff(projectQuery: string, level: HandoffLevel = 'sta
     out.push('');
   }
 
-  // 4. Open threads
+  // 4. Open threads — taken from the last *working* session, not a Q&A one
   out.push(`## 4. 接手注意`);
-  const lastSession = sessions[sessions.length - 1];
-  const lastUser = lastUserMessage(lastSession);
+  const lastUser = lastUserMessage(lastWorking);
   if (lastUser) {
     out.push(`最后一条用户消息(很可能是未尽事项):`);
     out.push(quote(lastUser, 600));
@@ -119,6 +124,11 @@ export function generateHandoff(projectQuery: string, level: HandoffLevel = 'sta
 
 function isRealMessage(e: CanonicalEvent): boolean {
   return e.type === 'message' && !!e.text?.trim();
+}
+
+/** Pure consultation: nothing was built or changed — likely "what happened?" Q&A. */
+export function isAdvisory(s: CanonicalSession): boolean {
+  return s.meta.filesTouched.length === 0 && s.meta.counts.toolCalls <= 15;
 }
 
 function firstUserMessage(s: CanonicalSession): string {

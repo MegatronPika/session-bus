@@ -50,7 +50,16 @@ sbus setup claude-code      # 打印 `claude mcp add` 命令
 
 (去掉 `--apply` 则只打印配置片段,自己手动编辑。)
 
-然后直接说人话:**"接着 Codex 在这个项目上的进度继续做。"**
+## 让触发自动化(推荐)
+
+接上 MCP 只是让 agent **有能力**查历史;但 agent 只看眼前的信息,不点名它不会主动想到 session-bus。`init` 按项目解决这件事:
+
+```bash
+cd /你的/项目目录
+sbus init    # 往 AGENTS.md + CLAUDE.md 写入一段围栏标记的触发指令(幂等,可重复执行)
+```
+
+AGENTS.md 被 Codex(以及 Cursor/Copilot/Roo)原生读取;CLAUDE.md 被 Claude Code 读取,Cowork 也会读挂载文件夹里的这份。`init` 之后,直接说**"接着另一边的进度继续做"**就行,不用再点名 session-bus。
 
 ## 当前状态
 

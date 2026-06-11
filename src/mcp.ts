@@ -16,17 +16,34 @@ import { redact } from './redact.js';
  * like, the answer is current.
  */
 export async function runMcpServer(): Promise<void> {
-  const server = new McpServer({ name: 'session-bus', version: '0.1.0' });
+  const server = new McpServer({ name: 'session-bus', version: '0.2.0' });
 
-  const refresh = async (): Promise<void> => {
+  // Pre-warm: start the (potentially slow) initial scan at server startup,
+  // not on the first tool call. First-ever scans on a big machine can take
+  // tens of seconds; queries during that window are served from the existing
+  // index with a "refreshing" note instead of blocking.
+  let warming: Promise<unknown> | null = scanAll({ quiet: true })
+    .catch(() => {})
+    .finally(() => {
+      warming = null;
+    });
+
+  /** Returns true when results may be slightly stale (initial scan running). */
+  const refresh = async (): Promise<boolean> => {
+    if (warming) {
+      await Promise.race([warming, sleep(2500)]);
+      return warming !== null;
+    }
     try {
-      await scanAll({ quiet: true });
+      await scanAll({ quiet: true }); // incremental: fingerprint-skip, fast
     } catch {
       /* never let a scan failure break a query */
     }
+    return false;
   };
 
-  const text = (s: string) => ({ content: [{ type: 'text' as const, text: redact(s) }] });
+  const STALE_NOTE = '\n\n[note: initial index refresh still running — results may lag; call again in a few seconds for the freshest state]';
+  const text = (s: string, stale = false) => ({ content: [{ type: 'text' as const, text: redact(s) + (stale ? STALE_NOTE : '') }] });
 
   server.registerTool(
     'list_projects',
@@ -37,9 +54,9 @@ export async function runMcpServer(): Promise<void> {
       inputSchema: {},
     },
     async () => {
-      await refresh();
+      const stale = await refresh();
       const groups = groupByProject(loadIndex());
-      if (groups.size === 0) return text('No sessions recorded yet. Ask the user to run `sbus scan`.');
+      if (groups.size === 0) return text('No sessions recorded yet. Ask the user to run `sbus scan`.', stale);
       const rows = [...groups.entries()]
         .map(([project, es]) => ({
           project,
@@ -48,7 +65,7 @@ export async function runMcpServer(): Promise<void> {
           sources: [...new Set(es.map((e) => e.source))],
         }))
         .sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
-      return text(JSON.stringify(rows, null, 1));
+      return text(JSON.stringify(rows, null, 1), stale);
     },
   );
 
@@ -61,10 +78,10 @@ export async function runMcpServer(): Promise<void> {
       inputSchema: { project: z.string().describe('project path or any substring of it, e.g. "petpet"') },
     },
     async ({ project }) => {
-      await refresh();
+      const stale = await refresh();
       const groups = groupByProject(loadIndex());
       const hit = [...groups.entries()].find(([p]) => p.toLowerCase().includes(project.toLowerCase()));
-      if (!hit) return text(`No project matching "${project}". Call list_projects to see what exists.`);
+      if (!hit) return text(`No project matching "${project}". Call list_projects to see what exists.`, stale);
       const rows = hit[1].map((e) => ({
         id: e.id,
         source: e.source,
@@ -73,7 +90,7 @@ export async function runMcpServer(): Promise<void> {
         userMsgs: e.userMsgs,
         title: e.title,
       }));
-      return text(`project: ${hit[0]}\n${JSON.stringify(rows, null, 1)}`);
+      return text(`project: ${hit[0]}\n${JSON.stringify(rows, null, 1)}`, stale);
     },
   );
 
@@ -89,9 +106,9 @@ export async function runMcpServer(): Promise<void> {
       },
     },
     async ({ project, level }) => {
-      await refresh();
+      const stale = await refresh();
       const doc = generateHandoff(project, level ?? 'standard');
-      return doc ? text(doc) : text(`No project matching "${project}". Call list_projects first.`);
+      return doc ? text(doc, stale) : text(`No project matching "${project}". Call list_projects first.`, stale);
     },
   );
 
@@ -109,9 +126,9 @@ export async function runMcpServer(): Promise<void> {
       },
     },
     async ({ id, offset, limit, rolesOnly }) => {
-      await refresh();
+      const stale = await refresh();
       const s = loadSession(id);
-      if (!s) return text(`Session "${id}" not found or ambiguous — use list_sessions.`);
+      if (!s) return text(`Session "${id}" not found or ambiguous — use list_sessions.`, stale);
       const keep = rolesOnly === false ? s.events : s.events.filter((e) => e.role === 'user' || e.role === 'assistant');
       const start = offset ?? 0;
       const lim = limit ?? 50;
@@ -119,7 +136,7 @@ export async function runMcpServer(): Promise<void> {
       const lines = page.map((e) => `[${e.i}] ${e.role}/${e.type} ${(e.ts ?? '').slice(0, 19)}\n${e.text ?? (e.tool ? `${e.tool.name}: ${e.tool.input ?? ''}` : '')}`);
       const head = `session ${s.meta.id} · "${s.meta.title}" · project ${s.meta.project}\nevents ${start}–${start + page.length - 1} of ${keep.length} (filtered) / ${s.meta.counts.events} (total)`;
       const tail = start + lim < keep.length ? `\n…more — call again with offset=${start + lim}` : '';
-      return text(`${head}\n\n${lines.join('\n\n')}${tail}`);
+      return text(`${head}\n\n${lines.join('\n\n')}${tail}`, stale);
     },
   );
 
@@ -136,17 +153,21 @@ export async function runMcpServer(): Promise<void> {
       },
     },
     async ({ query, project, limit }) => {
-      await refresh();
+      const stale = await refresh();
       const hits = searchSessions(query, { project, limit });
-      if (hits.length === 0) return text(`No matches for "${query}".`);
+      if (hits.length === 0) return text(`No matches for "${query}".`, stale);
       const lines = hits.map(
         (h) => `${h.sessionId} [${h.role} @ event ${h.eventIndex}] ${path.basename(h.project)} ${(h.ts ?? '').slice(0, 16)}\n  ${h.snippet}`,
       );
-      return text(lines.join('\n\n'));
+      return text(lines.join('\n\n'), stale);
     },
   );
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('session-bus MCP server running (stdio)');
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

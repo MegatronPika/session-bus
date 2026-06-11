@@ -66,7 +66,20 @@ sbus setup claude-code      # prints the `claude mcp add` command
 
 (Or drop `--apply` to just print the snippet and edit configs yourself.)
 
-Then just say: *"Pick up where Codex left off on this project."*
+## Make it automatic (recommended)
+
+Connecting the MCP server gives agents the *ability* to consult history — but agents
+only act on what's in front of them, and won't reach for session-bus unprompted.
+`init` fixes that per project:
+
+```bash
+cd /path/to/your/project
+sbus init        # writes a fenced instruction block into AGENTS.md + CLAUDE.md (idempotent)
+```
+
+AGENTS.md is read natively by Codex (and Cursor/Copilot/Roo); CLAUDE.md by Claude Code
+and by Cowork for mounted folders. After `init`, you can just say
+*"pick up where the other tool left off"* — no need to mention session-bus by name.
 
 ## Status
 

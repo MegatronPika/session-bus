@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import readline from 'node:readline';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 import type { CanonicalEvent, CanonicalMeta, CanonicalSession, EventType, Role } from '../types.js';
 
 /**
@@ -73,7 +74,7 @@ export async function parseCodexFile(filePath: string): Promise<CanonicalSession
   };
 
   const rl = readline.createInterface({
-    input: fs.createReadStream(filePath, { encoding: 'utf8' }),
+    input: await openRolloutStream(filePath),
     crlfDelay: Infinity,
   });
 
@@ -253,6 +254,27 @@ export async function parseCodexFile(filePath: string): Promise<CanonicalSession
 }
 
 /* ----------------------------- helpers ----------------------------- */
+
+/**
+ * Plain .jsonl streams from disk; .jsonl.zst (Codex's archived rollouts) is
+ * decompressed in memory via fzstd (pure JS — keeps the zero-native-deps
+ * promise). Archived rollouts are decompressed whole; very large archives
+ * trade memory for simplicity (acceptable for v0.2, revisit if it bites).
+ */
+async function openRolloutStream(filePath: string): Promise<Readable> {
+  if (!filePath.endsWith('.zst')) {
+    return fs.createReadStream(filePath, { encoding: 'utf8' }) as unknown as Readable;
+  }
+  let fzstd: typeof import('fzstd');
+  try {
+    fzstd = await import('fzstd');
+  } catch {
+    throw new Error('.zst rollouts need the "fzstd" dependency — run `npm install` in session-bus');
+  }
+  const compressed = fs.readFileSync(filePath);
+  const out = fzstd.decompress(new Uint8Array(compressed));
+  return Readable.from(Buffer.from(out.buffer, out.byteOffset, out.byteLength).toString('utf8'));
+}
 
 function joinContent(content: unknown): string {
   if (!Array.isArray(content)) return '';
