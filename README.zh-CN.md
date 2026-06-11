@@ -61,6 +61,14 @@ sbus init    # 往 AGENTS.md + CLAUDE.md 写入一段围栏标记的触发指令
 
 AGENTS.md 被 Codex(以及 Cursor/Copilot/Roo)原生读取;CLAUDE.md 被 Claude Code 读取,Cowork 也会读挂载文件夹里的这份。`init` 之后,直接说**"接着另一边的进度继续做"**就行,不用再点名 session-bus。
 
+也可以用全局模式**一次覆盖所有项目**(写入各 app 的全局指令文件 `~/.codex/AGENTS.md`、`~/.claude/CLAUDE.md`):
+
+```bash
+sbus init --global
+```
+
+需要共享给同事的 git 仓库仍建议做一次项目级 `init`——指令块随仓库走,同事的 agent 也能受益。(Cowork 没有可安全写入的全局文件:挂载项目用项目级覆盖,或把命令打印的指令块手动粘进 Claude Desktop 的全局指令。)
+
 ## 当前状态
 
 v0.1(MVP),已在真实数据上完成双向验收:Cowork 新会话通过 `get_handoff` 冷启动接手 Codex 项目,全程未向用户重复提问即继续工作;Codex 会话通过 MCP 精确回答"Cowork 接手后做了什么"。验证数据包含 60+ 真实会话、单个 199 MB 的超大会话、多次上下文压缩与跨天会话。

@@ -166,11 +166,22 @@ program
 
 program
   .command('init')
-  .description('make session-bus auto-trigger in a project: write an ambient instruction block into AGENTS.md + CLAUDE.md (idempotent)')
+  .description('make session-bus auto-trigger: write an ambient instruction block into AGENTS.md + CLAUDE.md (idempotent)')
   .argument('[dir]', 'project directory', '.')
-  .action(async (dir: string) => {
-    const { initProject } = await import('./init.js');
+  .option('-g, --global', 'write to the per-app GLOBAL instruction files (~/.codex/AGENTS.md, ~/.claude/CLAUDE.md) — one shot covers all projects')
+  .action(async (dir: string, opts: { global?: boolean }) => {
     try {
+      if (opts.global) {
+        const { initGlobal } = await import('./init.js');
+        const { results, coworkBlock } = initGlobal();
+        for (const r of results) console.log(`  ${r.action}: ${r.file}`);
+        console.log('\n→ Codex 与 Claude Code 的所有会话(含未来项目)将自动咨询 session-bus。');
+        console.log('→ Cowork 没有可安全写入的全局指令文件:挂载文件夹的项目用 `sbus init <dir>` 覆盖,');
+        console.log('  或把下面这段粘进 Claude Desktop 的全局指令(Settings → Cowork → Memory):\n');
+        console.log(coworkBlock);
+        return;
+      }
+      const { initProject } = await import('./init.js');
       for (const r of initProject(dir)) console.log(`  ${r.action}: ${r.file}`);
       console.log('→ agents in this project will now consult session-bus without being told by name.');
     } catch (err) {

@@ -81,6 +81,18 @@ AGENTS.md is read natively by Codex (and Cursor/Copilot/Roo); CLAUDE.md by Claud
 and by Cowork for mounted folders. After `init`, you can just say
 *"pick up where the other tool left off"* — no need to mention session-bus by name.
 
+Or cover **all projects at once** via the per-app global instruction files
+(`~/.codex/AGENTS.md`, `~/.claude/CLAUDE.md`):
+
+```bash
+sbus init --global
+```
+
+Per-project `init` is still worth it for repos you share — the block travels
+with the repo, so teammates' agents get the hint too. (Cowork has no
+safely-writable global file; per-project covers it, or paste the printed block
+into Claude Desktop's global instructions.)
+
 ## Status
 
 v0.1 (MVP), acceptance-tested both ways on real data: a Cowork session cold-started
