@@ -1,5 +1,7 @@
 # session-bus
 
+**English** | [简体中文](./README.zh-CN.md)
+
 **Your AI conversations are project assets. Stop losing them when you switch apps.**
 
 session-bus is a local-first "session bus" for AI agents: it discovers the session
@@ -53,27 +55,30 @@ npm run dev -- setup codex|cowork|claude-code   # wiring instructions
 
 ## Connect your agents
 
-**Codex** — `~/.codex/config.toml`:
+One command per app — it edits the app's config for you (with a `*.bak` backup),
+using absolute paths so GUI apps find it without your shell PATH:
 
-```toml
-[mcp_servers.session-bus]
-command = "sbus"
-args = ["mcp"]
+```bash
+sbus setup cowork --apply   # Claude Cowork / Claude Desktop, then fully restart the app
+sbus setup codex --apply    # Codex CLI/Desktop/IDE
+sbus setup claude-code      # prints the `claude mcp add` command
 ```
 
-**Claude Cowork / Claude Desktop** — `claude_desktop_config.json`:
-
-```json
-{ "mcpServers": { "session-bus": { "command": "sbus", "args": ["mcp"] } } }
-```
+(Or drop `--apply` to just print the snippet and edit configs yourself.)
 
 Then just say: *"Pick up where Codex left off on this project."*
 
 ## Status
 
-v0.1 (MVP): Codex adapter (validated on real-world data incl. 199 MB sessions,
-compactions, multi-day sessions) · project-centric store · 3-level handoff ·
-5-tool MCP server · secret redaction on egress.
+v0.1 (MVP), acceptance-tested both ways on real data: a Cowork session cold-started
+from a Codex project via `get_handoff` and continued the work without re-asking the
+user; a Codex session answered "what did Cowork do after taking over?" precisely via
+MCP. Validated against 60+ real sessions incl. a 199 MB rollout, context
+compactions, and multi-day sessions.
+
+Core pieces: Codex + Cowork adapters · project-centric store · 3-level handoff ·
+5-tool MCP server (lazy incremental refresh) · secret redaction on egress ·
+one-command setup (`--apply`).
 
 Roadmap: Cowork adapter → Claude Code & Gemini CLI adapters → SessionStart-hook
 auto-injection → watch mode → chat-app (ChatGPT/Claude.ai) export import →

@@ -164,9 +164,21 @@ program
 
 program
   .command('setup')
-  .description('print MCP wiring instructions for an app')
+  .description('print (or with --apply, write) MCP wiring for an app')
   .argument('<app>', 'codex | cowork | claude-code')
-  .action(async (app: string) => {
+  .option('--apply', 'edit the app config file directly (backs up the original to *.bak)')
+  .action(async (app: string, opts: { apply?: boolean }) => {
+    if (opts.apply) {
+      const { applySetup } = await import('./setup.js');
+      try {
+        const msg = await applySetup(app);
+        console.log(msg);
+      } catch (err) {
+        console.error(String(err));
+        process.exitCode = 1;
+      }
+      return;
+    }
     // GUI apps (Claude Desktop) don't inherit your shell PATH — use absolute paths.
     const { fileURLToPath } = await import('node:url');
     const self = fileURLToPath(import.meta.url);
