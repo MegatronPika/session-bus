@@ -16,7 +16,9 @@ import { redact } from './redact.js';
  * like, the answer is current.
  */
 export async function runMcpServer(): Promise<void> {
-  const server = new McpServer({ name: 'session-bus', version: '0.2.0' });
+  const { createRequire } = await import('node:module');
+  const pkg = createRequire(import.meta.url)('../package.json') as { version: string };
+  const server = new McpServer({ name: 'session-bus', version: pkg.version });
 
   // Pre-warm: start the (potentially slow) initial scan at server startup,
   // not on the first tool call. First-ever scans on a big machine can take
@@ -75,7 +77,7 @@ export async function runMcpServer(): Promise<void> {
       title: 'List sessions of a project',
       description:
         'List the session timeline of one project (sessions ≈ sub-tasks, ordered by time, each with id/source/title/message count). Use the ids with get_session or get_handoff.',
-      inputSchema: { project: z.string().describe('project path or any substring of it, e.g. "petpet"') },
+      inputSchema: { project: z.string().describe('project path or any substring of it, e.g. "myapp"') },
     },
     async ({ project }) => {
       const stale = await refresh();
@@ -107,8 +109,15 @@ export async function runMcpServer(): Promise<void> {
     },
     async ({ project, level }) => {
       const stale = await refresh();
-      const doc = generateHandoff(project, level ?? 'standard');
-      return doc ? text(doc, stale) : text(`No project matching "${project}". Call list_projects first.`, stale);
+      let doc = generateHandoff(project, level ?? 'standard');
+      if (!doc) return text(`No project matching "${project}". Call list_projects first.`, stale);
+      // `full` can reach hundreds of k-tokens — never dump that into a context window.
+      const CAP = 50_000;
+      if (doc.length > CAP) {
+        doc = doc.slice(0, CAP) +
+          `\n\n[truncated at ${CAP} chars — for the complete document, ask the user to run: sbus handoff "${project}" --level full -o HANDOFF.md]`;
+      }
+      return text(doc, stale);
     },
   );
 

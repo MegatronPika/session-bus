@@ -1,7 +1,14 @@
 {
   "name": "session-bus",
-  "version": "0.1.0",
-  "description": "Local-first session bus for AI coding agents — share conversations across Codex, Claude Cowork, and more, organized by project.",
+  "version": "0.2.0",
+  "description": "Local-first session bus for AI coding agents — share conversations across Codex, Claude Cowork, Claude Code, and more, organized by project.",
+  "author": "Zekun Zhang (MegatronPika)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MegatronPika/session-bus.git"
+  },
+  "homepage": "https://github.com/MegatronPika/session-bus#readme",
+  "bugs": "https://github.com/MegatronPika/session-bus/issues",
   "type": "module",
   "bin": {
     "sbus": "./dist/cli.js"
@@ -11,6 +18,7 @@
     "dist",
     "README.md",
     "README.zh-CN.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {

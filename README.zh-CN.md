@@ -26,17 +26,19 @@ session-bus 是一条本地优先的"会话总线":它发现各 AI 应用(OpenAI
 2. **只读采集。** 永不写入各应用的私有目录,对它们零风险,也不怕它们升级。
 3. **可逆压缩。** 交接文档分三档蒸馏(brief/standard/full),但逐字历史永远只差一次 MCP 调用——不像应用内的上下文压缩,这里没有任何不可恢复的丢失。
 
-## 安装(开发预览)
+## 安装
 
 ```bash
-git clone <repo> && cd session-bus
-npm install && npm run build && npm link
+npm install -g session-bus
+
 sbus scan        # 收录会话(增量、只读)
 sbus ls          # 项目 → 会话清单
 sbus handoff <项目> [--level brief|standard|full] [-o HANDOFF.md]
 sbus search <关键词>
 sbus mcp         # 启动 MCP 服务(stdio)
 ```
+
+源码安装:`git clone https://github.com/MegatronPika/session-bus && cd session-bus && npm install && npm run build && npm link`
 
 ## 接入你的 agent
 

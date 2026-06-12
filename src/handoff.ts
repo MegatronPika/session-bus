@@ -45,10 +45,10 @@ export function generateHandoff(projectQuery: string, level: HandoffLevel = 'sta
   const firstAsk = firstUserMessage(sessions[0]);
   const lastOutcome = lastAssistantMessage(lastWorking);
   out.push(`**项目起点(用户原话):**`);
-  out.push(quote(firstAsk, level === 'brief' ? 400 : 1200));
+  out.push(quote(firstAsk, level === 'brief' ? 300 : 1200));
   if (lastOutcome) {
     out.push(`**最近一次工作的收尾(agent 原话):**`);
-    out.push(quote(lastOutcome, level === 'brief' ? 400 : 1200));
+    out.push(quote(lastOutcome, level === 'brief' ? 300 : 1200));
   }
   out.push('');
 
@@ -85,8 +85,8 @@ export function generateHandoff(projectQuery: string, level: HandoffLevel = 'sta
   const constraints = mineConstraints(sessions);
   if (constraints.length) {
     out.push(`## 3. 用户明确提出的约束/偏好(原话,跨全部会话)`);
-    for (const c of constraints.slice(0, level === 'brief' ? 6 : 15)) {
-      out.push(`- ${quoteInline(c, 280)}`);
+    for (const c of constraints.slice(0, level === 'brief' ? 4 : 15)) {
+      out.push(`- ${quoteInline(c, level === 'brief' ? 160 : 280)}`);
     }
     out.push('');
   }
@@ -96,12 +96,12 @@ export function generateHandoff(projectQuery: string, level: HandoffLevel = 'sta
   const lastUser = lastUserMessage(lastWorking);
   if (lastUser) {
     out.push(`最后一条用户消息(很可能是未尽事项):`);
-    out.push(quote(lastUser, 600));
+    out.push(quote(lastUser, level === 'brief' ? 300 : 600));
   }
   out.push('');
 
-  // 5. Files
-  const allFiles = [...new Set(sessions.flatMap((s) => s.meta.filesTouched))];
+  // 5. Files (skipped at brief level — get them from the standard handoff)
+  const allFiles = level === 'brief' ? [] : [...new Set(sessions.flatMap((s) => s.meta.filesTouched))];
   if (allFiles.length) {
     out.push(`## 5. 文件足迹(共 ${allFiles.length} 个)`);
     out.push(allFiles.slice(0, 30).map((f) => `- ${displayPath(f, project)}`).join('\n'));

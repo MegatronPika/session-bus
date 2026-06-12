@@ -1,5 +1,8 @@
 # session-bus
 
+[![npm](https://img.shields.io/npm/v/session-bus)](https://www.npmjs.com/package/session-bus)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
 **English** | [简体中文](./README.zh-CN.md)
 
 **Your AI conversations are project assets. Stop losing them when you switch apps.**
@@ -40,18 +43,19 @@ Three design commitments:
    but the verbatim history is always one MCP call away. Unlike in-app context
    compaction, nothing is ever unrecoverable.
 
-## Install (dev preview)
+## Install
 
 ```bash
-git clone <repo> && cd session-bus
-npm install
-npm run dev -- scan        # ingest sessions (incremental, read-only)
-npm run dev -- ls          # projects → sessions
-npm run dev -- handoff <project> [--level brief|standard|full] [-o HANDOFF.md]
-npm run dev -- search <query>
-npm run dev -- mcp         # run the MCP server (stdio)
-npm run dev -- setup codex|cowork|claude-code   # wiring instructions
+npm install -g session-bus
+
+sbus scan          # ingest sessions (incremental, read-only)
+sbus ls            # projects → sessions
+sbus handoff <project> [--level brief|standard|full] [-o HANDOFF.md]
+sbus search <query>
+sbus mcp           # run the MCP server (stdio)
 ```
+
+From source: `git clone https://github.com/MegatronPika/session-bus && cd session-bus && npm install && npm run build && npm link`
 
 ## Connect your agents
 

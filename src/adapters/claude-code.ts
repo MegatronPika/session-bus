@@ -69,7 +69,7 @@ export async function parseClaudeCodeSession(d: ClaudeCodeDiscovery): Promise<Ca
   return { meta, events: parsed.events };
 }
 
-/** Lossy fallback: "-Users-zhangzekun-dev-app" → "/Users/zhangzekun/dev/app". */
+/** Lossy fallback: "-Users-alice-dev-app" → "/Users/alice/dev/app". */
 export function decodeProjectDir(encoded: string): string {
   if (!encoded.startsWith('-')) return encoded;
   return encoded.replace(/-/g, '/');
